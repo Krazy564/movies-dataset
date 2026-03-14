@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd 
 import plotly.express as px
 
-fil = r"/workspaces/movies-dataset/data/budget_fil.xlsx"
+fil = r"/krazy564/movies-dataset/data/budget_fil.xlsx"
 
 
 def main_st(fil):
@@ -28,7 +28,7 @@ def main_st(fil):
     st.dataframe(df_totaler)
 
     if st.button("Gem ændringer"):
-        st.session_state.poster.to_excel(r"/workspaces/movies-dataset/data/budget_fil.xlsx")
+        st.session_state.poster.to_excel(r"/krazy564/movies-dataset/data/budget_fil.xlsx")
         st.rerun()
     
     
@@ -72,7 +72,7 @@ def login_gate():
                     st.session_state.pop(key, None)
                 st.rerun()
         # Kald dit hovedscript
-        fil = r"/workspaces/movies-dataset/data/budget_fil.xlsx"
+        fil = r"/krazy564/movies-dataset/data/budget_fil.xlsx"
         main_st(fil)
 
 if __name__ == "__main__":
