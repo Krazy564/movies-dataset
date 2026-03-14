@@ -1,66 +1,79 @@
-import altair as alt
-import pandas as pd
 import streamlit as st
+import pandas as pd 
+import plotly.express as px
 
-# Show the page title and description.
-st.set_page_config(page_title="Movies dataset", page_icon="🎬")
-st.title("🎬 Movies dataset")
-st.write(
-    """
-    This app visualizes data from [The Movie Database (TMDB)](https://www.kaggle.com/datasets/tmdb/tmdb-movie-metadata).
-    It shows which movie genre performed best at the box office over the years. Just 
-    click on the widgets below to explore!
-    """
-)
+fil = r"/workspaces/movies-dataset/data/budget_fil.xlsx"
 
 
-# Load the data from a CSV. We're caching this so it doesn't reload every time the app
-# reruns (e.g. if the user interacts with the widgets).
-@st.cache_data
-def load_data():
-    df = pd.read_csv("data/movies_genres_summary.csv")
-    return df
+def main_st(fil):
+
+    st.header("Budget app", divider="red")
 
 
-df = load_data()
+    df = pd.read_excel(fil, index_col=0)
 
-# Show a multiselect widget with the genres using `st.multiselect`.
-genres = st.multiselect(
-    "Genres",
-    df.genre.unique(),
-    ["Action", "Adventure", "Biography", "Comedy", "Drama", "Horror"],
-)
+    kolonner = df.columns[1:-1]
 
-# Show a slider widget with the years using `st.slider`.
-years = st.slider("Years", 1986, 2006, (2000, 2016))
+    df["Total"] = df[kolonner].sum(axis=1)
 
-# Filter the dataframe based on the widget input and reshape it.
-df_filtered = df[(df["genre"].isin(genres)) & (df["year"].between(years[0], years[1]))]
-df_reshaped = df_filtered.pivot_table(
-    index="year", columns="genre", values="gross", aggfunc="sum", fill_value=0
-)
-df_reshaped = df_reshaped.sort_values(by="year", ascending=False)
+    st.session_state.poster = st.data_editor(df, num_rows="dynamic")
 
+    total_måneder = df.columns[1:]
 
-# Display the data as a table using `st.dataframe`.
-st.dataframe(
-    df_reshaped,
-    use_container_width=True,
-    column_config={"year": st.column_config.TextColumn("Year")},
-)
+    df_totaler = df[total_måneder].sum(axis=0)
 
-# Display the data as an Altair chart using `st.altair_chart`.
-df_chart = pd.melt(
-    df_reshaped.reset_index(), id_vars="year", var_name="genre", value_name="gross"
-)
-chart = (
-    alt.Chart(df_chart)
-    .mark_line()
-    .encode(
-        x=alt.X("year:N", title="Year"),
-        y=alt.Y("gross:Q", title="Gross earnings ($)"),
-        color="genre:N",
+    df_totaler = pd.DataFrame([df_totaler], index=["Total pr. måned"])
+
+    st.subheader("Total pr. måned", divider="red")
+    st.dataframe(df_totaler)
+
+    if st.button("Gem ændringer"):
+        st.session_state.poster.to_excel(r"/workspaces/movies-dataset/data/budget_fil.xlsx")
+        st.rerun()
+    
+    
+    plot_df = (
+        df_totaler.T
+        .reset_index()
+        .rename(columns={"index": "Måned", 0: "Total"})
     )
-    .properties(height=320)
-)
-st.altair_chart(chart, use_container_width=True)
+
+    myplot = px.bar(plot_df, x="Måned", y="Total pr. måned", color="Måned", text_auto="True")
+
+    st.plotly_chart(myplot)
+
+
+def login_gate():
+    st.set_page_config(layout="wide")
+    st.title("Login")
+
+    # Session init
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+
+    if not st.session_state.authenticated:
+        with st.form("login_form"):
+            password = st.text_input("Adgangskode", type="password")
+            submit = st.form_submit_button("Log ind")
+        if submit:
+            if password == st.secrets.get("LOGIN_PASSWORD", ""):
+                st.session_state.authenticated = True
+                st.session_state.login_user = "John"  # evt. sæt navn her
+                st.success("Login ok")
+                st.rerun()
+            else:
+                st.error("Forkert adgangskode.")
+    else:
+        # Topbar med logout
+        cols = st.columns([1, 6, 1])
+        with cols[2]:
+            if st.button("Log ud"):
+                for key in ("authenticated", "login_user"):
+                    st.session_state.pop(key, None)
+                st.rerun()
+        # Kald dit hovedscript
+        fil = r"/workspaces/movies-dataset/data/budget_fil.xlsx"
+        main_st(fil)
+
+if __name__ == "__main__":
+    login_gate()
